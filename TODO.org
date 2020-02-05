@@ -1,0 +1,13 @@
+
+- [X] nats-pub
+- [X] nats-req
+- [X] nats-ping
+- [ ] nats-sub, callbacks
+- [ ] unsub
+- [ ] nuid?
+- [ ] connect options
+- [ ] new style request/response
+- [ ] cleaning buffer
+- [ ] process async info arguments
+- [ ] reconnection/disconnection
+- [ ] closing connection
