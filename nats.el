@@ -1,4 +1,4 @@
-;;; nats.el --- Emacs Lisp NATS Client 
+;;; nats.el --- Emacs Lisp NATS Client
 
 ;; Copyright 2020 The NATS Authors
 ;; Author: Waldemar Quevedo, based on eredis.el
@@ -40,33 +40,33 @@
   (let ((buffer (nats--generate-buffer host port)))
     (prog1
         ;; TODO: auto inc on subs
-	;; TODO: implement subs...
+        ;; TODO: implement subs...
         (setq nats-ssid 0)
 
-	;; TODO: Use defvar
-	(setq nats--current-process
-              (make-network-process :name (buffer-name buffer)
-				    :host host
-				    :service port
-				    :type nil
-				    :nowait nowait
-				    :keepalive t
-				    :linger t
-				    :sentinel #'nats-sentinel
-				    :buffer buffer))
+      ;; TODO: Use defvar
+      (setq nats--current-process
+            (make-network-process :name (buffer-name buffer)
+                                  :host host
+                                  :service port
+                                  :type nil
+                                  :nowait nowait
+                                  :keepalive t
+                                  :linger t
+                                  :sentinel #'nats-sentinel
+                                  :buffer buffer))
 
       ;; connect-init
       (process-send-string nats--current-process
-        (format "CONNECT {\"name\":\"Emacs\",\"lang\":\"elisp\",\"version\":\"0.1\",\"verbose\":false,\"pedantic\":false}\r\n"))
+                           (format "CONNECT {\"name\":\"Emacs\",\"lang\":\"elisp\",\"version\":\"0.1.0\",\"verbose\":false,\"pedantic\":false}\r\n"))
 
-	;; ping interval
-	(run-with-timer 0 (* 2 60)
-		      'nats-ping)
+      ;; ping interval
+      (run-with-timer 0 (* 2 60)
+                      'nats-ping)
 
-         ;; TODO: need to keep track of this as state from the client
-	 (with-current-buffer buffer
-	   (process-put nats--current-process 'response-start (point-max))
-	 )
+      ;; TODO: need to keep track of this as state from the client
+      (with-current-buffer buffer
+        (process-put nats--current-process 'response-start (point-max))
+        )
       )))
 
 (defun nats-ping ()
@@ -79,17 +79,17 @@
   If the last argument is a process then that is the process used,
   otherwise it will use the value of `nats--current-process'"
   (let* ((last-arg (car (last args)))
-	 (process (if (processp last-arg)
-		      last-arg
-		    nats--current-process))
-	 (command-args
-	  (if (or
-	       (null last-arg)
-	       (processp last-arg))
-	      (-butlast args)
-	    args)))
+         (process (if (processp last-arg)
+                      last-arg
+                    nats--current-process))
+         (command-args
+          (if (or
+               (null last-arg)
+               (processp last-arg))
+              (-butlast args)
+            args)))
     (if (and process (eq (process-status process) 'open))
-	(progn
+        (progn
           (process-send-string process "PING\n")
           (let ((ret-val (nats-get-response process)))
             (when (called-interactively-p 'any)
@@ -104,39 +104,39 @@
     (substring alnum i (1+ i))))
 
 (defun nats:inbox ()
-  (concat 
-    (random-alnum)
-    (random-alnum)
-    (random-alnum)
-    (random-alnum)
-    (random-alnum)
-    (random-alnum)
-    (random-alnum)
-    (random-alnum)
-    (random-alnum)
-    (random-alnum)
-    (random-alnum)
-    (random-alnum)
-  ))
+  (concat
+   (random-alnum)
+   (random-alnum)
+   (random-alnum)
+   (random-alnum)
+   (random-alnum)
+   (random-alnum)
+   (random-alnum)
+   (random-alnum)
+   (random-alnum)
+   (random-alnum)
+   (random-alnum)
+   (random-alnum)
+   ))
 
 (defun nats-pub (subject payload &optional reply)
   (let* ((payload-size (string-width payload))
-        (process nats--current-process))
+         (process nats--current-process))
 
-      (if reply
-        (prog1 
-	  (process-send-string process (format "PUB %s %s %d\r\n%s\r\n" subject reply payload-size payload)))
-        (process-send-string process (format "PUB %s %d\r\n%s\r\n" subject payload-size payload))
+    (if reply
+        (prog1
+            (process-send-string process (format "PUB %s %s %d\r\n%s\r\n" subject reply payload-size payload)))
+      (process-send-string process (format "PUB %s %d\r\n%s\r\n" subject payload-size payload))
       )))
 
 (defun nats-sub (subject cb)
   ;; TODO
-)
+  )
 
 (defun nats-req (subject payload)
   (let* ((inbox (format "_INBOX.%s" (nats:inbox)))
          (process nats--current-process)
-	 (resp nil))
+         (resp nil))
 
     ;; Update the ssid for the 1:1 request
     (setq nats-ssid (1+ nats-ssid))
@@ -156,31 +156,32 @@
       (process-put nats--current-process 'response-start (point-max)))
 
     ;; Wait for the response...
-    (prog1
-        (let ((buffer (process-buffer process))
+    (let ((buffer (process-buffer process))
 
-	      ;; Get current state of the parser
-              (response-start (process-get process 'response-start))
-              (done nil))
-	  
-          (with-current-buffer buffer
-            (while (not done)
-              (accept-process-output process 4 nil 1)
-              (setf done t)
+          ;; Get current state of the parser
+          (response-start (process-get process 'response-start))
+          (done nil))
 
-              (let* ((proto-line
-                      (buffer-substring response-start (point-max)))
-		      (payload-size nil))
-		(prog1
-		    ;; TODO: Assuming have already received the payload
-		    (if (string-match "MSG\s+\\([^\s]+\\)\s+\\([^\s]+\\)\s+\\([^\s]+\\)\r\n" proto-line)
-		        (let* ((payload-size (string-to-number (match-string 3 proto-line)))
-			       (payload-start (+ 2 (match-end 3)))
-			       (payload-end   (+ payload-start payload-size)))
+      (with-current-buffer buffer
+        (while (not done)
+          (accept-process-output process 4 nil 1)
+          (setf done t)
 
-			       (setf resp (substring proto-line payload-start payload-end))))
-		  ))))
-            ))
+          (let* ((proto-line
+                  (buffer-substring response-start (point-max)))
+                 (payload-size nil))
+            (prog1
+                ;; TODO: Assuming have already received the payload
+		;; TODO: Issues when there is no line at the end
+                (if (string-match "MSG\s+\\([^\s]+\\)\s+\\([^\s]+\\)\s+\\([^\s]+\\)\r\n" proto-line)
+                    (let* ((payload-size (string-to-number (match-string 3 proto-line)))
+                           (payload-start (+ 2 (match-end 3)))
+                           (payload-end   (+ payload-start payload-size))
+                           (response (substring proto-line payload-start payload-end)))
+                      (setf resp response))
+                  ))))
+        ))
+
     ;; Finally, return the response...
     resp))
 
