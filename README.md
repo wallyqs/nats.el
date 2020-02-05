@@ -4,7 +4,7 @@ NATS Client for Emacs Lisp
 
 ## Usage
 
-```lisp
+```emacs-lisp
 (require 'nats)
 
 (nats-connect "127.0.0.1" 4222)
